@@ -19,3 +19,5 @@ RUN pip install transformers_stream_generator
 
 # アプリケーションファイルを追加
 COPY app /app
+
+EXPOSE 8000
