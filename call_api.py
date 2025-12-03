@@ -46,12 +46,20 @@ def validate_submission(df):
 
 def call_local_llm(messages):
     """ローカルLLM (ollama) を呼び出す関数"""
+    from models.qwen_captioning import QwenChat
     try:
-        import ollama
         # messagesの最後のユーザーメッセージを取得
-        user_message = next((msg["content"] for msg in reversed(messages) if msg["role"] == "user"), "")
-        response = ollama.chat(model=BASE_MODEL, messages=[{"role": "user", "content": user_message}])
+        user_message = next(
+            (msg["content"] for msg in reversed(messages) if msg["role"] == "user"),
+            ""
+        )
+
+        Qwen = QwenChat(model=BASE_MODEL)
+        response = Qwen.generate_chat(
+            messages=[{"role": "user", "content": user_message}]
+        )
         return response["message"]["content"]
+
     except Exception as e:
         raise Exception(f"ローカルLLM呼び出しエラー: {e}")
 
