@@ -1,46 +1,57 @@
 # app.py
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse, PlainTextResponse
-from call_api import run_qwen_pipeline
+from call_api import run_qwen_pipeline, get_last_log_line
 import yaml
 
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool 
 app = FastAPI()
 
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/", response_class=HTMLResponse)
-def index():
-    # 超シンプルなフォーム（textarea 6個）
-    return """
-    <html>
-      <body>
-        <h1>Qwen YAML Generator</h1>
-        <form action="/run" method="post">
-          <p>prompt1:<br><textarea name="prompt1" rows="3" cols="80"></textarea></p>
-          <p>prompt2:<br><textarea name="prompt2" rows="3" cols="80"></textarea></p>
-          <p>prompt3:<br><textarea name="prompt3" rows="3" cols="80"></textarea></p>
-          <p>prompt4:<br><textarea name="prompt4" rows="3" cols="80"></textarea></p>
-          <p>prompt5:<br><textarea name="prompt5" rows="3" cols="80"></textarea></p>
-          <p>prompt6:<br><textarea name="prompt6" rows="3" cols="80"></textarea></p>
-          <button type="submit">送信</button>
-        </form>
-      </body>
-    </html>
-    """
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+@app.get("/")
+def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/run", response_class=PlainTextResponse)
-def run(
-    prompt1: str = Form(...),
-    prompt2: str = Form(...),
-    prompt3: str = Form(...),
-    prompt4: str = Form(...),
-    prompt5: str = Form(...),
-    prompt6: str = Form(...),
-):
-    prompt_texts = [prompt1, prompt2, prompt3, prompt4, prompt5, prompt6]
+@app.get("/log_tail")
+def log_tail():
+    return get_last_log_line() or "（ログなし）"
 
-    yaml_dict = run_qwen_pipeline(prompt_texts)
+@app.post("/run_pipeline")
+async def run_pipeline(payload: dict):
+    prompts = payload["prompts"]  # ["text1", "text2", ..., "text6"]
 
-    # dict → YAML 文字列
-    yaml_str = yaml.safe_dump(yaml_dict, allow_unicode=True, sort_keys=False)
-    return yaml_str
+    # result_yaml = run_qwen_pipeline(prompts)
+    result_yaml = await run_in_threadpool(run_qwen_pipeline, prompts)
+    yaml_text = yaml.dump(result_yaml, allow_unicode=True)
+
+    summary = result_yaml.get("スコアサマリー", {})
+    attack = summary.get("攻撃性能", {})
+    defense = summary.get("防御性能", {})
+    unified = summary.get("統合スコア", {})
+
+    score_data = {
+        "attack": float(unified.get("攻撃パフォーマンス", 0)),
+        "defense": float(unified.get("防御パフォーマンス", 0)),
+        "final": float(unified.get("最終スコア", 0))
+    }
+
+    latest_log = get_last_log_line()
+
+    return {
+        "output": yaml_text,
+        "scores": score_data,
+        "latest_log": latest_log,
+    }

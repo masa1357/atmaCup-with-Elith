@@ -17,3 +17,5 @@ google-genai>=1.52.0
 fastapi
 uvicorn[standard]
 PyYAML
+python-multipart
+openai

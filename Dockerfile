@@ -1,4 +1,5 @@
-FROM nvidia/cuda:12.5.0-base-ubuntu22.04
+# FROM nvidia/cuda:12.5.0-base-ubuntu22.04
+FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 
 # 必要なパッケージをインストール
 RUN apt-get update && apt-get install -y \

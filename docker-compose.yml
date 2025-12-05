@@ -10,9 +10,18 @@ services:
       - ./logs:/logs
     ports:
       - "8000:8000"
-    runtime: nvidia
+    # runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - PYTHONUNBUFFERED=1
     command: python /app/main.py
+
+    # ここを追加（GPU指定）
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1         # 1枚だけ使う。全部なら all
+              capabilities: [gpu]
